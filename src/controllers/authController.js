@@ -70,7 +70,6 @@ const register = async (req, res, next) => {
 }
 
 const getUserByToken =async (req,res,next) =>{
-    console.log(req.cookies._devtoken)
     try {
         const token = req.cookies._devtoken;
         if(!token){
@@ -94,7 +93,6 @@ const getUserByToken =async (req,res,next) =>{
                 exclude: ['password', 'createdAt', 'updatedAt']
             }
         })
-        console.log(user)
         if(!user){
             return res.status(401).json({
                 success: false,
@@ -113,8 +111,24 @@ const getUserByToken =async (req,res,next) =>{
     }
 }
 
+const logout = async(req,res,next)=>{
+    try{
+        res.cookie("_devtoken", null, {
+            maxAge: 0,
+            // httpOnly:true,
+            // secure:false,sameSite:"none"
+        });
+        return res.status(200).json({success:true,message:"Succecssfully logged out"})
+
+    }catch(error){
+        console.log(error);
+        next(error);
+    }
+}
+
 module.exports = {
     login,
     register,
-    getUserByToken
+    getUserByToken,
+    logout
 }
