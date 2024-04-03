@@ -25,10 +25,10 @@ const login = async (req, res, next) => {
             })
         }
         const token = jwt.sign({id: user.id, email: user.email}, "devdrive_secret");
-        res.cookie("_dev-token", token, {
-            httpOnly: true,
-            sameSite: "none",
-            secure: false,
+        res.cookie("_devtoken", token, {
+            // httpOnly: true,
+            // sameSite: "none",
+            // secure: false,
             maxAge: 3600000
         })
         return res.status(200).json({success: true, data: token, message: "Logged in successfully"})
@@ -69,7 +69,52 @@ const register = async (req, res, next) => {
     }
 }
 
+const getUserByToken =async (req,res,next) =>{
+    console.log(req.cookies._devtoken)
+    try {
+        const token = req.cookies._devtoken;
+        if(!token){
+            return res.status(401).json({
+                success: false,
+                message: "Unauthorized"
+            })
+        }
+        const {id} = jwt.verify(token, "devdrive_secret");
+        if(!id){
+            return res.status(401).json({
+                success: false,
+                message: "Unauthorized"
+            })
+        }
+        const user =await User.findOne({
+            where: {
+                id: id
+            },
+            attributes:{
+                exclude: ['password', 'createdAt', 'updatedAt']
+            }
+        })
+        console.log(user)
+        if(!user){
+            return res.status(401).json({
+                success: false,
+                message: "Unauthorized"
+            })
+        }
+        req.user = user;
+        return res.status(200).json({
+            success:true,
+            data: user,
+            message: "User retrieved successfully"
+        })
+    } catch (error) {
+        console.log(error);
+        next(error)
+    }
+}
+
 module.exports = {
     login,
-    register
+    register,
+    getUserByToken
 }

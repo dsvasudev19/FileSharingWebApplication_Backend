@@ -3,24 +3,23 @@ const express=require("express");
 const {sequelize}=require("./src/models");
 const cookieParser=require("cookie-parser");
 const cors=require("cors");
-const app=express();
 const PORT=process.env.PORT || 3000;
 const routes=require("./src/routes");
 
+const app=express();
 const corsOptions={
     origin:[
-        "http://localhost:3000",
-        "http://localhost:3001",
         "http://localhost:5173",
     ],
-    credentials:true,
-    optionSuccessStatus:200
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], allowedHeaders: "Content-Type,Authorization,Set-Cookie", credentials: true,
+
 }
 
 app.use(cors(corsOptions));
+app.use(cookieParser());
 app.use(express.urlencoded({extended: true}));
 app.use(express.json());
-app.use(cookieParser());
+
 app.use(express.static("public"))
 
 
