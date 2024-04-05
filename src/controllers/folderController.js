@@ -8,7 +8,7 @@ const createFolder = async (req, res, next) => {
             const hashedPassword = await bcrypt.hashSync(req.body.password, 10);
             const folder = await Folder.create({
                 ...req.body,
-                userId: req.body.userId,
+                userId: req.user.id,
                 password: hashedPassword,
                 ref: crypto.randomBytes(6).toString('hex').toUpperCase()
             })
@@ -20,7 +20,7 @@ const createFolder = async (req, res, next) => {
         }else{
             const folder = await Folder.create({
                 ...req.body,
-                userId: req.body.userId,
+                userId: req.user.id,
                 ref: crypto.randomBytes(6).toString('hex').toUpperCase()
             })
             return res.status(201).json({
@@ -40,7 +40,7 @@ const getFoldersByUserId = async (req, res, next) => {
     try {
         const folders = await Folder.findAll({
             where: {
-                userId: req.body.userId
+                userId: req.user.id
             }
         })
         if(folders){

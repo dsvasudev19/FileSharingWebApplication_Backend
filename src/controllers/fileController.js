@@ -86,23 +86,29 @@ const getByRef = async (req, res, next) => {
 
 
 const create = async (req, res, next) => {
+    console.log(req.body)
     console.log(req.file)
-    let foldRef = req.body.folderRef || 1
+    
+    let foldRef = req.body.folderRef || "root"
     try {
         if (req.body.password) {
             const hashedPassword = await bcrypt.hashSync(req.body.password, 10);
-            
             const file = await File.create({
                 ...req.body, 
                 password: hashedPassword, 
                 ref: crypto.randomBytes(6).toString('hex').toUpperCase(), 
-                userId: req.body.userId, 
-                folderRef: foldRef
+                userId: req.user.id, 
+                folderRef: foldRef,
+                file_name:req.file.filename,
+                original_name:req.file.originalname,
+                file_type:req.file.mimetype,
+                file_size:req.file.size,
+                url:`./uploads/files/${req.file.filename}`,
+                path:""
             });
             if (file) {
                 return res.status(201).json({
                     success: true,
-                    data: file,
                     message: "File created successfully"
                 })
             } else {
@@ -117,12 +123,17 @@ const create = async (req, res, next) => {
             ...req.body,
             ref: crypto.randomBytes(6).toString('hex').toUpperCase(),
             userId: req.body.userId,
-            folderRef: foldRef
+            folderRef: foldRef,
+            file_name: req.file.filename,
+            original_name: req.file.originalname,
+            file_type: req.file.mimetype,
+            file_size: req.file.size,
+            url: `./uploads/files/${ req.file.filename }`,
+            path: ""
         });
         if (file) {
             return res.status(201).json({
                 success: true,
-                data: file,
                 message: "File created successfully"
             })
         } else {
