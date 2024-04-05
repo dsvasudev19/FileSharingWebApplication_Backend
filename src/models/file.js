@@ -23,7 +23,15 @@ module.exports = (sequelize, DataTypes) => {
     file_type: DataTypes.STRING,
     file_size: DataTypes.STRING,
     url: DataTypes.STRING,
-    path: DataTypes.STRING
+    path: {
+      type: DataTypes.STRING,
+      allowNull:true,
+      get(){
+        const var1=this.getDataValue("url").split("/")[2]
+        const var2=this.getDataValue("file_name");
+        return process.env.BASE_URL+"/"+var1+"/"+var2;
+      }
+    }
   }, {
     sequelize,
     modelName: 'File',

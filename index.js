@@ -1,4 +1,4 @@
-// require("dotenv").config();
+require("dotenv").config();
 const express=require("express");
 const {sequelize}=require("./src/models");
 const cookieParser=require("cookie-parser");
