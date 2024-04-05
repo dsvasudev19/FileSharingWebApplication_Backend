@@ -1,7 +1,9 @@
 const router = require('express').Router();
 const fileController=require("./../controllers/fileController");
+const {fileUpload} = require('../utils/multer');
+const authMiddleware = require('../middlewares/userAuthMiddleware');
 
-router.post('/', fileController.create);
+router.post('/',[authMiddleware],fileUpload.single('file'), fileController.create);
 
 router.get('/by/folderRef/:folderRef', fileController.getFilesByFolderRef);
 

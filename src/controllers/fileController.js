@@ -87,17 +87,21 @@ const getByRef = async (req, res, next) => {
 
 const create = async (req, res, next) => {
     console.log(req.body)
-    let foldRef = req.body.folderRef || 1
+    let foldRef = req.body.folderRef || "root"
     try {
         if (req.body.password) {
             const hashedPassword = await bcrypt.hashSync(req.body.password, 10);
-            
             const file = await File.create({
                 ...req.body, 
                 password: hashedPassword, 
                 ref: crypto.randomBytes(6).toString('hex').toUpperCase(), 
-                userId: req.body.userId, 
-                folderRef: foldRef
+                userId: req.user.id, 
+                folderRef: foldRef,
+                file_name:req.file.filename,
+                original_name:req.file.originalname,
+                file_type:req.file.type,
+                file_size:req.file.size,
+                url:`./uploads/files/${req.file.filename}`
             });
             if (file) {
                 return res.status(201).json({

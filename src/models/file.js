@@ -11,7 +11,7 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate(models) {
       // define association here
-      this.belongsTo(models.Folder,{foreignKey:'folderRef',as:'files'})
+      this.belongsTo(models.Folder,{foreignKey:'folderRef',as:'files',constraints:false})
     }
   }
   File.init({
