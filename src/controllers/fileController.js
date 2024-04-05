@@ -86,7 +86,7 @@ const getByRef = async (req, res, next) => {
 
 
 const create = async (req, res, next) => {
-    console.log(req.body)
+    console.log(req.file)
     let foldRef = req.body.folderRef || 1
     try {
         if (req.body.password) {
