@@ -11,6 +11,14 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate(models) {
       // define association here
+      this.hasMany(models.Share,{
+        foreignKey:'senderId',
+        as:'sharesSent'
+      })
+      this.hasMany(models.Share,{
+        foreignKey:'receiverId',
+        as:'sharesReceived',
+      })
     }
   }
   User.init({
