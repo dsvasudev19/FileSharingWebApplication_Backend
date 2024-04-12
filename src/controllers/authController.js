@@ -69,18 +69,18 @@ const register = async (req, res, next) => {
     }
 }
 
-const logout=async(req,res,next)=>{
-    console.log("getting here");
-    try {
-        res.cookie('_devtoken',null,{
-            maxAge:0
-        })
-        return res.status(200).json({success: true, message:"Successfully logged out"})
-    } catch (error) {
-        console.log(error);
-        next(error)
-    }
-}
+// const logout=async(req,res,next)=>{
+//     console.log("getting here");
+//     try {
+//         res.cookie('_devtoken',null,{
+//             maxAge:0
+//         })
+//         return res.status(200).json({success: true, message:"Successfully logged out"})
+//     } catch (error) {
+//         console.log(error);
+//         next(error)
+//     }
+// }
 
 const getUserByToken =async (req,res,next) =>{
     try {
@@ -121,6 +121,21 @@ const getUserByToken =async (req,res,next) =>{
     } catch (error) {
         console.log(error);
         next(error)
+    }
+}
+
+const logout = async(req,res,next)=>{
+    try{
+        res.cookie("_devtoken", null, {
+            maxAge: 0,
+            // httpOnly:true,
+            // secure:false,sameSite:"none"
+        });
+        return res.status(200).json({success:true,message:"Succecssfully logged out"})
+
+    }catch(error){
+        console.log(error);
+        next(error);
     }
 }
 

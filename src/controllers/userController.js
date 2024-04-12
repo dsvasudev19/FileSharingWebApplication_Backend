@@ -1,4 +1,4 @@
-const {User} = require("./../models");
+const {User, Share,File} = require("./../models");
 const crypto = require("crypto");
 const bcrypt = require("bcrypt")
 
@@ -19,7 +19,31 @@ const getAll = async (req, res, next) => {
 
 const getById = async (req, res, next) => {
     try {
-        const user = await User.findByPk(req.params.id);
+        const user = await User.findByPk(req.params.id,{
+            include:[
+                {
+                    model:Share,
+                    as:'sharesSent',
+                    include:[
+                        {
+                            model:File,
+                            as:'file'
+                        }
+                    ]
+                },
+                {
+                    model: Share,
+                    as: 'sharesReceived',
+                    include: [
+                        {
+                            model: File,
+                            as: 'file'
+                        }
+                    ]
+                },
+                
+            ]
+        });
         if (user) {
             return res.status(200).json({success: true, message: 'Successfully fetched user', data: user})
         }
