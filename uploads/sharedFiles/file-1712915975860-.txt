@@ -1,0 +1,40 @@
+const express = require("express");
+const router = express.Router();
+const userController = require("../controllers/UserController");
+const auth = require("../middlewares/userAuthMiddleWare");
+// get all hotels to display in home page or user side
+router.get("/hotels", userController.getAllHotels)
+router.get("/hotels/:id", userController.getHotelById);
+
+router.get("/hotels/slug/:slug",userController.getHotelBySlug)
+
+router.get("/by/token", userController.getUserByToken);
+
+//get all hotels in the city of the user or default city
+router.get("/properties/:city", userController.getHotelsByCity)
+
+//get all hotels of the same vendor (more or less like similar hotels)
+// router.get("/hotels/:vendorName", userController.getHotelsByVendor);
+
+// get bookings by user reference_number    
+router.get("/track/:reference_number", userController.getByUserReferenceNumber);
+
+// get all user
+router.get("/", userController.getAllUsers);
+
+//get user by id
+router.get("/:userId", userController.getUserDetailsById);
+
+//update User Details
+router.put("/:userId", userController.updateUserDetails);
+
+//create new user
+router.post("/", userController.createUser);
+
+//delete user by id
+router.delete("/:userId", userController.deleteUser);
+
+router.get("/rooms/media/:id", userController.getAllImagesOfRoom);
+
+
+module.exports = router;S

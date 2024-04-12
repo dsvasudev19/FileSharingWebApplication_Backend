@@ -5,7 +5,7 @@ const authMiddleware = require('../middlewares/userAuthMiddleware');
 
 router.post('/',[authMiddleware],fileUpload.single('file'), fileController.create);
 
-router.get('/by/folderRef/:folderRef', fileController.getFilesByFolderRef);
+router.get('/by/folderRef/:folderRef',[authMiddleware], fileController.getFilesByFolderRef);
 
 router.get("/:id", fileController.getById);
 
