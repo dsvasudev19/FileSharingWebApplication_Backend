@@ -1,0 +1,1056 @@
+const {
+  Property,
+  Amenity,
+  Media,
+  Room,
+  Vendor,
+  PropertyAmenity,
+  RoomPrice,
+  RoomType
+} = require("../../models");
+const {validationResult} = require("express-validator");
+const {sequelize} = require("../../models");
+const _ = require("lodash");
+const slugify = require("slugify");
+const {where} = require("sequelize");
+
+/**
+ * @swagger
+ * /admin/properties:
+ *   get:
+ *     summary: Get all properties with associated media
+ *     description: Retrieve all properties along with their associated media and featured media.
+ *     tags: [Properties]
+ *     responses:
+ *       200:
+ *         description: Properties retrieved successfully
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               message: Properties retrieved successfully
+ *               data: [
+ *                 {
+ *                   id: 1,
+ *                   name: "Property 1",
+ *                   media: [{ id: 1, url: "http://example.com/image1.jpg" }],
+ *                   featuredMedia: { id: 2, url: "http://example.com/image2.jpg" },
+ *                 },
+ *                 {
+ *                   id: 2,
+ *                   name: "Property 2",
+ *                   media: [{ id: 3, url: "http://example.com/image3.jpg" }],
+ *                   featuredMedia: { id: 4, url: "http://example.com/image4.jpg" },
+ *                 },
+ *               ]
+ *       500:
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: Internal Server Error
+ */
+// Get all Properties
+const getAll = async (req, res, next) => {
+  try {
+    let {limit, page, city, locality} = req.query;
+    console.log(req.query);
+    let whereClause = {
+    };
+
+    const limited = parseInt(limit, 10);
+    const offSet = (page - 1) * limit;
+    page = parseInt(page, 10);
+    limit = parseInt(page, 10);
+    if (city) {
+      whereClause.city = city;
+    }
+    if (locality) {
+      whereClause.locality = locality;
+    }
+    console.log(whereClause);
+    const count = await Property.count({where: whereClause});
+    console.log(count);
+    const properties = await Property.findAll({
+      include: [
+        {
+          model: Media,
+          as: "propertyMedia",
+        },
+        {
+          model: Media,
+          as: "featuredPropertyMedia",
+        },
+        {
+          model: Vendor,
+          as: "vendor",
+        },
+        {
+          model: Room,
+          as: "room",
+          include: [
+            {
+              model: Media,
+              as: "roomMedia",
+            },
+            {
+              model: Media,
+              as: "featuredRoomMedia",
+            },
+            {model: RoomPrice, as: "prices"},
+          ],
+        }
+      ],
+      where: whereClause,
+      limit: limited,
+      offset: offSet,
+      order: [["createdAt", "DESC"]],
+    });
+    res.status(200).json({
+      success: true,
+      message: "Properties retrieved successfully",
+      data: properties,
+      pagesCount: count
+    });
+  } catch (err) {
+    console.log(err.message);
+
+    next(err);
+  }
+};
+
+/**
+ * @swagger
+ * /admin/properties/vendor/{vendorId}:
+ *   get:
+ *     summary: Retrieves properties associated with a given vendorId
+ *     description: Fetches properties, along with related media and rooms, for the specified vendor.
+ *     tags:
+ *       - Properties
+ *     parameters:
+ *       - in: path
+ *         name: vendorId
+ *         description: ID of the vendor
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Properties retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   description: Indicates whether the operation was successful
+ *                 message:
+ *                   type: string
+ *                   description: A message describing the operation's result
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Property'  # Reference the Property schema
+ *       500:
+ *         description: Internal server error
+ */
+
+const getAllByVendorId = async (req, res, next) => {
+  try {
+    const properties = await Property.findAll({
+      where: {vendorId: req.params.vendorId},
+      include: [
+        {
+          model: Media,
+          as: "propertyMedia",
+        },
+        {
+          model: Media,
+          as: "featuredPropertyMedia",
+        },
+        {
+          model: Room,
+          as: "room",
+        },
+        {
+          model: Vendor,
+          as: "vendor",
+        },
+
+      ],
+    });
+    res.status(200).json({
+      success: true,
+      message:
+        "Properties associated with given VendorId retrieved successfully",
+      data: properties,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * @swagger
+ * /admin/properties/{id}:
+ *   get:
+ *     summary: Get a property by ID
+ *     description: Retrieve a property by providing its ID along with associated media.
+ *     tags: [Properties]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         description: ID of the property to be retrieved
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Property retrieved successfully
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               message: Property retrieved successfully
+ *               data: {
+ *                 id: 1,
+ *                 name: "Property 1",
+ *                 media: [{ id: 1, url: "http://example.com/image1.jpg" }],
+ *                 featuredMedia: { id: 2, url: "http://example.com/image2.jpg" },
+ *               }
+ *       404:
+ *         description: Property not found
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: Property not found
+ *       500:
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: Internal Server Error
+ */
+// Get single Property ById
+
+const getById = async (req, res, next) => {
+  try {
+    let propertyFound = await Property.findByPk(req.params.id, {
+      include: [
+        {
+          model: Media,
+          as: "propertyMedia",
+        },
+        {
+          model: Media,
+          as: "featuredPropertyMedia",
+        },
+        {
+          model: Room,
+          as: "room",
+          include: [{model: RoomPrice, as: "prices"}],
+        },
+        {
+          model: Vendor,
+          as: "vendor",
+        },
+        {
+          model: Amenity,
+        }
+      ],
+    });
+    if (!propertyFound) {
+      return res.status(404).json({
+        success: false,
+        message: "Property not found",
+      });
+    }
+    res.status(200).json({
+      success: true,
+      message: "Property retrieved successfully",
+      data: propertyFound,
+    });
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
+};
+
+const getBySlug = async (req, res, next) => {
+  try {
+    let propertyFound = await Property.findOne({
+      where:{
+        slug: req.params.slug
+      }
+    }, {
+      include: [
+        {
+          model: Media,
+          as: "propertyMedia",
+        },
+        {
+          model: Media,
+          as: "featuredPropertyMedia",
+        },
+        {
+          model: Room,
+          as: "room",
+          include: [{model: RoomPrice, as: "prices"}],
+        },
+        {
+          model: Vendor,
+          as: "vendor",
+        },
+        {
+          model: Amenity,
+        }
+      ],
+    });
+    if (!propertyFound) {
+      return res.status(404).json({
+        success: false,
+        message: "Property not found",
+      });
+    }
+    res.status(200).json({
+      success: true,
+      message: "Property retrieved successfully",
+      data: propertyFound,
+    });
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
+}
+
+/**
+ * @swagger
+ * /admin/properties:
+ *   post:
+ *     summary: Create a new property
+ *     description: Creates a new property in the system.
+ *     tags:
+ *       - Properties
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             $ref: '#/components/schemas/NewProperty'
+ *     responses:
+ *       201:
+ *         description: Property created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   description: Indicates whether the operation was successful.
+ *                 message:
+ *                   type: string
+ *                   description: A descriptive message about the result.
+ *                 data:
+ *                   $ref: '#/components/schemas/Property'
+ *       422:
+ *         description: Unprocessable Entity
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   description: Indicates whether the operation was successful.
+ *                 message:
+ *                   type: string
+ *                   description: A descriptive message about the error.
+ *                 errors:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/ValidationError'
+ *       500:
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   description: Indicates whether the operation was successful.
+ *                 message:
+ *                   type: string
+ *                   description: A descriptive message about the error.
+ *                 error:
+ *                   type: object
+ *                   description: Details about the error.
+ */
+// Create a new Property
+// const create = async (req, res, next) => {
+//   console.log(req.body);
+//   console.log(req.file)
+//   try {
+//     const errors = validationResult(req);
+//     if (!errors.isEmpty()) {
+//       res.status(422).json({
+//         success: false,
+//         message: "Property creation Failed!",
+//         errors: errors.array(),
+//       });
+//     }
+
+//     const sAm = JSON.parse(req.body.selectedAmenities);
+//     console.log(sAm);
+//     // const position=JSON.parse(req.body.position);
+//     // const latitude=position[0];
+//     // const longitude=position[1]
+
+//     //creating property details in the table
+//     try{
+//       const property = await Property.create({
+//         vendorId: req.params.vendorId,
+//         property_typeId: parseInt(req.body.property_typeId),
+//         ...req.body,
+//         status: parseInt(req.body.status),
+
+//         slug: _.replace(req.body.title, /\s/, "-"),
+
+//       });
+//       const imageURL = `./uploads/propertyMedia/${ req.file.filename }`;
+
+//       const propertyId = property.id;
+//       const transformedArray = sAm?.map(id => ({propertyId, AmenityId: id}));
+//       console.log(transformedArray);
+//       const result = await PropertyAmenity.bulkCreate(transformedArray);
+//       console.log(result);
+
+//       const media = await Media.create({
+//         mediable_id: property.id,
+//         mediable_type: 'Property',
+//         url: imageURL,
+//         name: req.file.originalname,
+//         file_name: req.file.filename,
+//         file_type: req.file.mimetype,
+//         file_size: req.file.size,
+//         featured: true || 1
+//       })
+
+//     }catch(error){
+
+//       throw new Error(error);
+//     }
+
+//   } catch (err) {
+//     console.log(err.message);
+//     next(err);
+//   }
+// };
+const create = async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(422).json({
+        success: false,
+        message: "Property creation Failed!",
+        errors: errors.array(),
+      });
+      return;
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Please upload an image",
+      });
+    }
+    const sAm = JSON.parse(req.body.selectedAmenities);
+    const roomTypes = JSON.parse(req.body.roomTypes);
+
+
+    try {
+      const property = await Property.create({
+        vendorId: req.params.vendorId,
+        property_typeId: parseInt(req.body.property_typeId),
+        ...req.body,
+        status: parseInt(req.body.status),
+        slug: slugify((req.body.title.toLowerCase())),
+      });
+      const imageURL = `./uploads/propertyMedia/${ req.file.filename }`;
+      const propertyId = property.id;
+      const transformedArray = sAm?.map((id) => ({
+        propertyId,
+        amenityId: id,
+      }));
+      const roomTypeArray = roomTypes?.map((name) => ({
+        propertyId,
+        type: name,
+      }));
+      console.log(roomTypeArray);
+      const resultOfRoomTypes = await RoomType.bulkCreate(roomTypeArray);
+
+      const result = await PropertyAmenity.bulkCreate(transformedArray);
+      const media = await Media.create({
+        mediable_id: property.id,
+        mediable_type: "Property",
+        url: imageURL,
+        name: req.file.originalname,
+        file_name: req.file.filename,
+        file_type: req.file.mimetype,
+        file_size: req.file.size,
+        featured: true || 1,
+      });
+      res.status(201).json({
+        success: true,
+        message: "Property and associated records created successfully",
+        data: {property, amenities: result, media},
+      });
+    } catch (error) {
+      console.log(error.message);
+      res.status(500).json({
+        success: false,
+        message: "Failed to create property and associated records",
+        error: error.message,
+      });
+    }
+  } catch (err) {
+    console.log(err, "error message");
+    next(err);
+  }
+};
+
+const createOneProperty = async (req, res, next) => {
+  const {title, amenities} = req.body;
+
+  try {
+    // Start a transaction to ensure data consistency
+    const transaction = await sequelize.transaction();
+
+    try {
+      // Create the property
+      const property = await Property.create(req.body, {transaction});
+
+      // If amenities are provided, associate them with the property
+      if (amenities && amenities.length > 0) {
+        const amenityInstances = await Amenity.findAll({
+          where: {id: amenities},
+        });
+
+        // Associate amenities with the property using PropertyAmenity model
+        await property.setAmenities(amenityInstances, {transaction});
+      }
+
+      // Commit the transaction
+      await transaction.commit();
+
+      return res
+        .status(201)
+        .json({message: "Property created successfully", property});
+    } catch (error) {
+      // Rollback the transaction in case of an error
+      await transaction.rollback();
+      throw error;
+    }
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({error: "Internal Server Error"});
+  }
+};
+
+/**
+ * @swagger
+ * /admin/properties/{id}:
+ *   delete:
+ *     summary: Delete a property by ID
+ *     description: Endpoint to delete a property by its ID.
+ *     tags:
+ *       - Properties
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         description: ID of the property to be deleted
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       '200':
+ *         description: Property deleted successfully
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               message: Property deleted successfully
+ *       '404':
+ *         description: Requested Property not found
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: Requested Property not found
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: Internal Server Error
+ */
+// Delete a Property By using the unique id
+const deleteById = async (req, res, next) => {
+  try {
+    const property = await Property.findByPk(req.params.id);
+    if (property) {
+      await Property.destroy({
+        where: {
+          id: req.params.id,
+        },
+      });
+      res
+        .status(200)
+        .json({success: true, message: "Property deleted successfully"});
+    } else {
+      res
+        .status(404)
+        .json({success: false, message: "Requested Property not found"});
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * /admin/properties/{id}:
+ *   put:
+ *     summary: Update property details by ID
+ *     description: Endpoint to update details of a property by its ID.
+ *     tags:
+ *       [Properties]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         description: ID of the property to be updated
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       description: Updated property details
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: New name for the property
+ *                 example: Updated Property Name
+ *
+ *     responses:
+ *       '200':
+ *         description: Property details updated successfully
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               message: Property details updated successfully
+ *               data:
+ *                 // Include the expected structure of the updated property
+ *       '404':
+ *         description: Requested Property not found
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: Requested Property not found
+ *       '422':
+ *         description: Property Details not updated due to validation errors
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: Property Details not updated
+ *               errors:
+ *                 // Include the validation errors array structure
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: Internal Server Error
+ */
+// updating an Property
+const update = async (req, res, next) => {
+  const propertyId = req.params.id;
+  console.log("request body", req.body);
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(422).json({
+        success: false,
+        message: "Property Details not updated",
+        errors: errors.array(),
+      });
+    }
+    const exists = await Property.findByPk(req.params.id);
+    if (exists) {
+      let selectedAmenities;
+      let roomTypes;
+      if (req.body.selectedAmenities) {
+        try {
+          selectedAmenities = JSON.parse(req.body.selectedAmenities);
+          roomTypes = JSON.parse(req.body.roomTypes);
+          const roomTypeArray = roomTypes?.map((name) => ({
+            propertyId,
+            type: name,
+          }));
+
+          const deletionResult = await RoomType.destroy({where: {propertyId: propertyId}});
+          const resultOfRoomTypes = await RoomType.bulkCreate(roomTypeArray);
+
+        } catch (error) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid format for selected amenities",
+          });
+        }
+      }
+      console.log("amenities", selectedAmenities);
+      const updatedData = {
+        ...req.body,
+        slug: slugify((req.body.title).toLowerCase()),
+      };
+
+      if (selectedAmenities && selectedAmenities.length > 0) {
+        updatedData.selectedAmenities = selectedAmenities;
+      }
+
+      const updatedProperty = await Property.update(updatedData, {
+        where: {id: req.params.id},
+      });
+
+      if (req.file) {
+        const imageURL = `./uploads/propertyMedia/${ req.file.filename }`;
+        await Media.update(
+          {
+            url: imageURL,
+            name: req.file.originalname,
+            file_name: req.file.filename,
+            file_type: req.file.mimetype,
+            file_size: req.file.size,
+            featured: true || 1,
+          },
+          {where: {mediable_id: exists.id, mediable_type: "Property"}}
+        );
+      }
+
+      if (updatedProperty) {
+        res.status(200).json({
+          success: true,
+          message: "Property details updated successfully",
+          data: updatedProperty,
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          message: "Property details not updated",
+        });
+      }
+    } else {
+      res
+        .status(404)
+        .json({success: false, message: "Requested Property not found"});
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * /admin/properties/status/{id}/:
+ *   put:
+ *     summary: Update property status
+ *     description: Updates the status of a property with the specified ID.
+ *     tags:
+ *       [Properties]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the property to update
+ *       - in: body
+ *         name: status
+ *         required: true
+ *         schema:
+ *           type: object
+ *           properties:
+ *             status:
+ *               type: integer
+ *         description: Object containing the new status value
+ *     responses:
+ *       200:
+ *         description: Property status updated successfully
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               message: Property status updated successfully
+ *               data:
+ *                 // Include the structure of the updated property if needed
+ *       404:
+ *         description: Requested Property not found
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: Requested Property not found
+ *       500:
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: Internal Server Error
+ */
+const changeStatus = async (req, res) => {
+  try {
+    const property = await Property.findByPk(req.params.id);
+    console.log(property);
+    if (property) {
+      const updatedProperty = await Property.update(
+        {status: parseInt(req.body.status)},
+        {where: {id: req.params.id}}
+      );
+      res.status(200).json({
+        success: true,
+        message: "Property status updated successfully",
+        data: updatedProperty,
+      });
+    } else {
+      res
+        .status(404)
+        .json({success: true, message: "Requested Property not found"});
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @swagger
+ * /admin/properties/profile/:propertyId:
+ *   post:
+ *     summary: Update profile picture for a property
+ *     description: Uploads and sets a new profile picture for a property with the specified ID.
+ *     tags:
+ *       - Properties
+ *     parameters:
+ *       - in: path
+ *         name: propertyId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the property to update profile picture
+ *       - in: formData
+ *         name: file
+ *         type: file
+ *         required: true
+ *         description: Image file to be uploaded as the new profile picture
+ *     responses:
+ *       201:
+ *         description: Featured Media Updated Successfully
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               message: Featured Media Updated Successfully
+ *               data:
+ *                 // Include the structure of the created media if needed
+ *       400:
+ *         description: Failed to update Featured Media
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: Failed to update Featured Media
+ *       500:
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: Internal Server Error
+ */
+
+// const updateProfilePicture = async (req, res) => {
+//   console.log(req.file);
+//   await Media.destroy({
+//     where: {
+//       mediable_id: req.params.propertyId,
+//       mediable_type: "Property",
+//       featured: true
+//     }
+//   });
+
+//   const imageURL = `./uploads/propertyMedia/${ req.file.filename }`
+
+//   const media = await Media.create({
+//     mediable_id: req.params.propertyId,
+//     mediable_type: "Property",
+//     url: imageURL,
+//     name: req.file.filename,
+//     file_size: req.file.size,
+//     file_name: req.file.filename,
+//     file_type: req.file.mimetype,
+//     featured: true
+//   });
+
+//   if (media) {
+//     return res.status(201).json({
+//       success: true,
+//       message: "Featured Media Updated Successfully",
+//       data: media
+//     })
+//   }
+//   return res.status(400).json({
+//     success: false,
+//     message: "Failed to update Featured Media",
+//   });
+// }
+const updateProfilePicture = async (req, res) => {
+  console.log(req.file);
+
+  try {
+    await Media.destroy({
+      where: {
+        mediable_id: req.params.propertyId,
+        mediable_type: "Property",
+        featured: true,
+      },
+    });
+
+    const imageURL = `./uploads/propertyMedia/${ req.file.filename }`;
+
+    const media = await Media.create({
+      mediable_id: req.params.propertyId,
+      mediable_type: "Property",
+      url: imageURL,
+      name: req.file.filename,
+      file_size: req.file.size,
+      file_name: req.file.filename,
+      file_type: req.file.mimetype,
+      featured: true,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Featured Media Updated Successfully",
+      data: media,
+    });
+  } catch (error) {
+    console.error("Error creating Media:", error);
+    return res.status(400).json({
+      success: false,
+      message: "Failed to update Featured Media",
+      error: error.message, // Include the error message in the response for debugging
+    });
+  }
+};
+
+const getOnlyProperties = async (req, res, next) => {
+  try {
+    const properties = await Property.findAll({
+      attributes: ["id", "title"],
+    });
+    if (properties) {
+      res.status(200).json({
+        success: true,
+        message: "Properties retrieved successfully",
+        data: properties,
+      });
+    } else {
+      return res.status(404).json({
+        success: false,
+        message: "No Properties found",
+      });
+    }
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getRoomTypesOfProperty = async (req, res, next) => {
+  const propertyId = req.params.propertyId;
+  try {
+    const roomTypes = await RoomType.findAll({
+      where: {
+        propertyId: propertyId
+      },
+    })
+    if (roomTypes) {
+      return res.status(200).json({success: true, message: "Successfully fetched room types", data: roomTypes})
+    }
+    return res.status(200).json({success: false, message: "No room types found", data: []})
+
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+
+}
+
+const getRoomTypesByRoomId = async (req, res, next) => {
+  const roomId = req.params.roomId;
+  try {
+    const {propertyId} = await Room.findOne({
+      where: {
+        id: roomId
+      },
+      attributes: ["propertyId"]
+    })
+    console.log(propertyId)
+    const roomTypes = await RoomType.findAll({
+      where: {
+        propertyId: propertyId
+      },
+    })
+    console.log(roomTypes);
+
+    if (roomTypes) {
+      return res.status(200).json({success: true, message: "Successfully fetched room types", data: roomTypes})
+    }
+    return res.status(200).json({success: false, message: "No room types found", data: []})
+
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+
+}
+
+
+
+module.exports = {
+  getAll,
+  getAllByVendorId,
+  create,
+  createOneProperty,
+  update,
+  deleteById,
+  getById,
+  getBySlug,
+  changeStatus,
+  updateProfilePicture,
+  getOnlyProperties,
+  getRoomTypesOfProperty,
+  getRoomTypesByRoomId
+};
