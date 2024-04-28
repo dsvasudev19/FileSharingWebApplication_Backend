@@ -13,4 +13,8 @@ router.use('/file',fileRoutes);
 const userRouter=require("./userRoutes");
 router.use('/user',userRouter);
 
+const fileShareRoutes=require("./fileShareRoutes")
+router.use("/share",fileShareRoutes)
+
+
 module.exports=router;

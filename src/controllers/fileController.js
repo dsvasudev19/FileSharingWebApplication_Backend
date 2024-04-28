@@ -7,7 +7,8 @@ const getFilesByFolderRef = async (req, res, next) => {
     try {
         const files = await File.findAll({
             where: {
-                folderRef: req.params.folderRef
+                folderRef: req.params.folderRef,
+                userId:req.user.id
             }
         })
         if (files) {

@@ -13,9 +13,10 @@ const {File}=require("./src/models")
 const corsOptions={
     origin:[
         "http://localhost:5173",
+        "https://devdrive.vercel.app",
+        "https://dev-drive.vercel.app"
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], allowedHeaders: "Content-Type,Authorization,Set-Cookie", credentials: true,
-
 }
 
 app.use(cors(corsOptions));
