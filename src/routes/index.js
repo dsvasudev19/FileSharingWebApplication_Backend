@@ -16,5 +16,7 @@ router.use('/user',userRouter);
 const fileShareRoutes=require("./fileShareRoutes")
 router.use("/share",fileShareRoutes)
 
+// const sharedRoutes=require("./shareRoutes.js");
+// router.use('/share',sharedRoutes);
 
 module.exports=router;

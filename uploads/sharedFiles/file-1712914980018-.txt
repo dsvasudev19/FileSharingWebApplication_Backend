@@ -1,0 +1,318 @@
+const {Wishlist, Property, Media, Room, Amenity, User} = require('../models');
+
+/**
+ * @swagger
+ * /wishlist/{userId}:
+ *   get:
+ *     summary: Get Wishlist by User ID
+ *     description: Retrieve the wishlist for a specific user.
+ *     tags: [Wishlist]
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         description: User ID
+ *         required: true
+ *         type: string
+ *     responses:
+ *       200:
+ *         description: Successful response
+ *         schema:
+ *           type: object
+ *           properties:
+ *             success:
+ *               type: boolean
+ *               default: true
+ *             message:
+ *               type: string
+ *               default: Wishlist fetched successfully
+ *             wishlist:
+ *               type: array
+ *               items:
+ *                 $ref: '#/definitions/WishlistItem'
+ *       404:
+ *         description: Wishlist is empty
+ *         schema:
+ *           type: object
+ *           properties:
+ *             success:
+ *               type: boolean
+ *               default: false
+ *             message:
+ *               type: string
+ *               default: Wishlist is Empty
+ *       500:
+ *         description: Internal Server Error
+ *         schema:
+ *           $ref: '#/definitions/Error'
+ */
+
+/**
+ * @typedef {object} WishlistItem
+ * @property {number} id - Wishlist item ID
+ * @property {string} // Add other properties based on your Wishlist model
+ */
+
+/**
+ * @typedef {object} Media
+ * @property {number} id - Media ID
+ * @property {string} // Add other properties based on your Media model
+ */
+
+/**
+ * @typedef {object} Property
+ * @property {number} id - Property ID
+ * @property {string} // Add other properties based on your Property model
+ */
+
+/**
+ * @typedef {object} Error
+ * @property {string} error - Error message
+ */
+
+/**
+ * Get wishlist by user ID
+ * @function
+ * @async
+ * @param {object} req - Express request object
+ * @param {object} res - Express response object
+ * @param {function} next - Express next middleware function
+ * @returns {Promise<void>}
+ */
+
+async function getWishlistByUserId(req, res, next) {
+    const userId = req.params.userId;
+    try {
+        const wishlist = await Wishlist.findAll({
+            where: {
+                userId: userId
+            },
+            include: [
+                {
+                    model: Property,
+                    as: "property",
+                    attributes: ['id', 'title', 'description', 'address', 'property_typeId','slug'],
+                    include: [
+                        {
+                            model: Media,
+                            as: "propertyMedia",
+                            attributes: ['path', 'url', 'file_name'],
+                        },
+                        {
+                            model: Media,
+                            as: "featuredPropertyMedia",
+                            attributes: ['path', 'url', 'file_name'],
+                        },
+                        {
+                            model: Room,
+                            as: "room",
+                            attributes: ['id'],
+                        }
+                    ]
+                }
+                , {
+                    model: User,
+                    attributes: ['id', 'first_name', 'last_name']
+                }
+            ]
+        })
+        if (wishlist.length > 0) {
+            res.status(200).json({success: true, message: "Wishlist fetched successfully", wishlist});
+        } else {
+            return res.status(404).json({success: false, message: "Wishlist is Empty"});
+        }
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
+}
+
+/**
+ * @swagger
+ * /wishlist/{userId}:
+ *   post:
+ *     summary: Add Property to Wishlist
+ *     description: Add a property to the user's wishlist.
+ *     tags: [Wishlist]
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         description: User ID
+ *         required: true
+ *         type: string
+ *       - in: body
+ *         name: requestBody
+ *         description: Request body with propertyId
+ *         required: true
+ *         schema:
+ *           type: object
+ *           properties:
+ *             propertyId:
+ *               type: number
+ *     responses:
+ *       200:
+ *         description: Property added to wishlist successfully
+ *         schema:
+ *           type: object
+ *           properties:
+ *             success:
+ *               type: boolean
+ *               default: true
+ *             message:
+ *               type: string
+ *               default: Property added to wishlist successfully
+ *             wishlist:
+ *               $ref: '#/definitions/WishlistItem'
+ *       500:
+ *         description: Internal Server Error
+ *         schema:
+ *           $ref: '#/definitions/Error'
+ */
+
+/**
+ * @typedef {object} WishlistItem
+ * @property {number} id - Wishlist item ID
+ * @property {string} // Add other properties based on your Wishlist model
+ */
+
+/**
+ * @typedef {object} Error
+ * @property {string} error - Error message
+ */
+
+/**
+ * Add property to user's wishlist
+ * @function
+ * @async
+ * @param {object} req - Express request object
+ * @param {object} res - Express response object
+ * @param {function} next - Express next middleware function
+ * @returns {Promise<void>}
+ */
+
+async function addPropertyToWishlist(req, res, next) {
+    
+    const id = req.params.propertyId;
+    
+    try {
+        const itemFound = await Wishlist.findOne({
+            where:
+                {userId: req.user.id, propertyId: id}
+        });
+        if (itemFound) {
+            return res.status(300).json({success: false, message: "Property already exists in the wishlist"});
+        }
+        const wishlist = await Wishlist.create({
+            userId: req.user.id,
+            propertyId: id
+        });
+        if (wishlist) {
+            res.status(200).json({success: true, message: "Property added to wishlist successfully", wishlist});
+        }
+        else {
+            res.status(500).json({success: false, message: "Internal server error"});
+        }
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
+}
+
+/**
+ * @swagger
+ * /wishlist/{id}:
+ *   delete:
+ *     summary: Delete Property from Wishlist
+ *     description: Delete a property from the user's wishlist by ID.
+ *     tags: [Wishlist]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         description: Wishlist item ID
+ *         required: true
+ *         type: integer
+ *     responses:
+ *       200:
+ *         description: Property deleted from wishlist successfully
+ *         schema:
+ *           type: object
+ *           properties:
+ *             success:
+ *               type: boolean
+ *               default: true
+ *             message:
+ *               type: string
+ *               default: Property deleted from wishlist successfully
+ *             wishlist:
+ *               $ref: '#/definitions/WishlistItem'
+ *       404:
+ *         description: Property not found in the wishlist with the given ID
+ *         schema:
+ *           type: object
+ *           properties:
+ *             success:
+ *               type: boolean
+ *               default: false
+ *             message:
+ *               type: string
+ *               default: Property not found in the wishlist with the given ID
+ *       500:
+ *         description: Internal Server Error
+ *         schema:
+ *           $ref: '#/definitions/Error'
+ */
+
+/**
+ * @typedef {object} WishlistItem
+ * @property {number} id - Wishlist item ID
+ * @property {string} // Add other properties based on your Wishlist model
+ */
+
+/**
+ * @typedef {object} Error
+ * @property {string} error - Error message
+ */
+
+/**
+ * Delete property from user's wishlist by ID
+ * @function
+ * @async
+ * @param {object} req - Express request object
+ * @param {object} res - Express response object
+ * @param {function} next - Express next middleware function
+ * @returns {Promise<void>}
+ */
+
+const deletePropertyFromWishlist = async (req, res, next) => {
+    
+    try {
+        const propertyFound = await Wishlist.findAll({
+            where: {
+                propertyId: req.params.propertyId
+            }
+        });
+        if (propertyFound.length === 0) {
+            res.status(404).json({success: false, message: "Property not found in the wishlist with the given id"});
+        } else {
+            const wishlist = await Wishlist.destroy({
+                where: {
+                    propertyId: req.params.propertyId,
+                    userId: req.user.id
+                }
+            });
+            if (wishlist) {
+                res.status(200).json({success: true, message: "Property deleted from wishlist successfully", wishlist});
+            }
+            else {
+                res.status(500).json({success: false, message: "Internal server error"});
+            }
+        }
+
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
+}
+
+
+
+module.exports = {getWishlistByUserId, addPropertyToWishlist, deletePropertyFromWishlist}
