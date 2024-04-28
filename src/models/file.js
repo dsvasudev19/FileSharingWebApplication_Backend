@@ -18,6 +18,7 @@ module.exports = (sequelize, DataTypes) => {
     folderRef: DataTypes.STRING,
     userId: DataTypes.INTEGER,
     ref: DataTypes.STRING,
+    password:DataTypes.STRING,
     file_name: DataTypes.STRING,
     original_name: DataTypes.STRING,
     file_type: DataTypes.STRING,

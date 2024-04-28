@@ -123,7 +123,7 @@ const create = async (req, res, next) => {
         const file = await File.create({
             ...req.body,
             ref: crypto.randomBytes(6).toString('hex').toUpperCase(),
-            userId: req.body.userId,
+            userId: req.user.id,
             folderRef: foldRef,
             file_name: req.file.filename,
             original_name: req.file.originalname,
