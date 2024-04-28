@@ -7,4 +7,6 @@ router.post("/withUser", shareStorage.single("file"),[auth],fileShareController.
 
 router.get("/shared/user",[auth],fileShareController.getAllFilesSharedWithYou);
 
+router.post("/uploaded/user", [auth], fileShareController.shareUploadedFileWithFriend)
+
 module.exports=router;

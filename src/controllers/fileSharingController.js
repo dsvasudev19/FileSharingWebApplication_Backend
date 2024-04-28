@@ -1,4 +1,4 @@
-const {Share, File,User} = require("../models")
+const {Share, File, User} = require("../models")
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const {sequelize} = require("../models");
@@ -43,7 +43,7 @@ const shareFileWithFriend = async (req, res, next) => {
         } else {
             receiver = await User.create({
                 email: req.body.email,
-                password:bcrypt.hashSync("devdrive@123",10)
+                password: bcrypt.hashSync("devdrive@123", 10)
             })
         }
         const file = await File.create({
@@ -57,18 +57,18 @@ const shareFileWithFriend = async (req, res, next) => {
             file_size: req.file.size,
             url: `./uploads/shares/${ req.file.filename }`,
             path: ""
-        },transaction);
+        }, transaction);
 
         const share = await Share.create({
             fileRef: file.ref,
             senderId: req.user.id,
-            receiverId:receiver.id,
-            password:bcrypt.hashSync(req.body.password,10)
+            receiverId: receiver.id,
+            password: bcrypt.hashSync(req.body.password, 10)
         }, {transaction: transaction})
 
         await transaction.commit();
 
-        res.status(200).json({success:true,message:"Successfully Shared file with your friend"})
+        res.status(200).json({success: true, message: "Successfully Shared file with your friend"})
 
     } catch (error) {
         await transaction.rollback();
@@ -77,4 +77,35 @@ const shareFileWithFriend = async (req, res, next) => {
     }
 }
 
-module.exports = {getAllFilesSharedWithYou, shareFileWithFriend}
+
+const shareUploadedFileWithFriend = async (req, res, next) => {
+    console.log(req.body)
+    const t = await sequelize.transaction();
+    try {
+        const receiver = await User.findOne({
+            where: {
+                email: req.body.email
+            }
+        }, {transaction: t})
+
+        if (!receiver) {
+            return res.status(400).json({success: false, message: "Receiver is Not an existing user."})
+        } else {
+            const share = await Share.create({
+                fileRef: req.body.fileRef,
+                senderId: req.user.id,
+                receiverId:receiver.id
+            }, {transaction: t})
+
+
+            await t.commit();
+            return res.status(200).json({success: true, message: "File shared successfully"})
+        }
+    } catch (error) {
+        await t.rollback();
+        console.log(error);
+        next(error);
+    }
+}
+
+module.exports = {getAllFilesSharedWithYou, shareFileWithFriend, shareUploadedFileWithFriend}
