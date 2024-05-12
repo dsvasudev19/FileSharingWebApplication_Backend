@@ -9,4 +9,6 @@ router.get("/shared/user",[auth],fileShareController.getAllFilesSharedWithYou);
 
 router.post("/uploaded/user", [auth], fileShareController.shareUploadedFileWithFriend)
 
+router.get("/download/:id",fileShareController.downloadFile);
+
 module.exports=router;

@@ -108,4 +108,22 @@ const shareUploadedFileWithFriend = async (req, res, next) => {
     }
 }
 
-module.exports = {getAllFilesSharedWithYou, shareFileWithFriend, shareUploadedFileWithFriend}
+const downloadFile=async(req,res,next)=>{
+    try {
+        const file=await File.findByPk(req.params.id);
+        if(file){
+            return res.download(`/uploads/files/${file.filename}`);
+        }else{
+            return res.status(404).json({success:false,message:"No Such file found"})
+        }
+        
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
+}
+
+
+
+
+module.exports = {getAllFilesSharedWithYou, shareFileWithFriend, shareUploadedFileWithFriend, downloadFile}
