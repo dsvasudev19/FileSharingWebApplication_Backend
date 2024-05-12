@@ -111,8 +111,10 @@ const shareUploadedFileWithFriend = async (req, res, next) => {
 const downloadFile=async(req,res,next)=>{
     try {
         const file=await File.findByPk(req.params.id);
+        console.log(file)
         if(file){
-            return res.download(`/uploads/files/${file.filename}`);
+            // backend\uploads\files\file - 1714305783173 -.jpg
+            return res.download(`/FileSharingApp/backend/uploads/files/${file.file_name}`,`${file.file_name}`);
         }else{
             return res.status(404).json({success:false,message:"No Such file found"})
         }
